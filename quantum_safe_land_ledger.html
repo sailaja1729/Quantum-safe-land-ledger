@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quantum-Safe Land Ledger | Demo</title>
+  <style>
+    :root { --navy:#101a35; --purple:#6d28d9; --lav:#f3edff; --ink:#172033; --muted:#657089; --line:#e4e8f1; --green:#087443; --red:#b42318; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Inter,Segoe UI,Arial,sans-serif; color:var(--ink); background:#f6f8fc; }
+    header { background:linear-gradient(120deg,#171b4b,#6325ba); color:#fff; padding:28px 20px; }
+    .wrap { max-width:1100px; margin:auto; }
+    .eyebrow { font-size:.78rem; letter-spacing:.13em; text-transform:uppercase; opacity:.8; }
+    h1 { margin:8px 0; font-size:clamp(1.65rem,4vw,2.6rem); }
+    header p { margin:8px 0 0; max-width:760px; line-height:1.55; color:#eee8ff; }
+    main { max-width:1100px; margin:24px auto; padding:0 16px 36px; }
+    .notice { border:1px solid #f2d58a; background:#fff9e8; color:#704f00; border-radius:12px; padding:12px 14px; line-height:1.5; margin-bottom:18px; }
+    .stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-bottom:18px; }
+    .stat,.panel { background:#fff; border:1px solid var(--line); border-radius:16px; box-shadow:0 5px 20px #16224a08; }
+    .stat { padding:16px; } .stat span { color:var(--muted); font-size:.88rem; } .stat strong { display:block; font-size:1.7rem; margin-top:6px; }
+    .layout { display:grid; grid-template-columns:340px 1fr; gap:18px; align-items:start; }
+    .panel { padding:20px; } h2 { margin:0 0 15px; font-size:1.18rem; }
+    label { display:block; font-size:.9rem; font-weight:650; margin:12px 0 6px; }
+    input,select { width:100%; border:1px solid #ccd3e0; border-radius:9px; padding:11px 12px; font:inherit; background:white; }
+    input:focus,select:focus { outline:2px solid #c4b5fd; border-color:var(--purple); }
+    button { border:0; border-radius:9px; padding:11px 14px; font:inherit; font-weight:700; cursor:pointer; }
+    .primary { width:100%; margin-top:16px; background:var(--purple); color:white; }
+    .secondary { background:#eee8ff; color:#4c1d95; }
+    .danger { background:#fff0ee; color:var(--red); }
+    .toolbar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+    .records { display:grid; gap:12px; }
+    .record { border:1px solid var(--line); border-radius:12px; padding:14px; }
+    .record-top { display:flex; justify-content:space-between; align-items:start; gap:10px; }
+    .record h3 { margin:0 0 5px; font-size:1rem; overflow-wrap:anywhere; }
+    .meta { color:var(--muted); font-size:.88rem; line-height:1.6; }
+    .hash { margin-top:10px; padding:9px; border-radius:8px; background:#f7f7fb; font: .75rem ui-monospace,Consolas,monospace; overflow-wrap:anywhere; }
+    .pill { display:inline-block; border-radius:999px; padding:5px 8px; font-size:.75rem; font-weight:800; white-space:nowrap; }
+    .ok { background:#e7f8ef; color:var(--green); } .bad { background:#ffebe9; color:var(--red); }
+    .empty { color:var(--muted); text-align:center; padding:28px 10px; border:1px dashed #ccd3e0; border-radius:12px; }
+    .result { margin-top:12px; padding:12px; border-radius:10px; display:none; line-height:1.5; }
+    .result.show { display:block; } .result.success { background:#e7f8ef; color:#075c35; } .result.error { background:#ffebe9; color:#8c1d15; }
+    footer { text-align:center; color:var(--muted); font-size:.82rem; margin-top:22px; }
+    @media(max-width:800px) { .layout { grid-template-columns:1fr; } .stats { grid-template-columns:1fr; } .stat strong { font-size:1.4rem; } }
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Qiskit Fall Fest 2026 · Hackathon Prototype</div>
+    <h1>Quantum-Safe Land Ledger</h1>
+    <p>A demonstration of linked land records, SHA-256 integrity hashes, and tampering detection for land-record and provenance systems.</p>
+  </div>
+</header>
+<main>
+  <div class="notice"><strong>Prototype limitation:</strong> this browser demo uses a SHA-256 hash chain. It demonstrates integrity checking, but it does <strong>not</strong> implement post-quantum digital signatures or prove quantum safety.</div>
+  <section class="stats">
+    <div class="stat"><span>Records in ledger</span><strong id="recordCount">0</strong></div>
+    <div class="stat"><span>Ledger integrity</span><strong id="integrityStat">Not checked</strong></div>
+    <div class="stat"><span>Hash algorithm</span><strong style="font-size:1.25rem">SHA-256</strong></div>
+  </section>
+  <div class="layout">
+    <section class="panel">
+      <h2>Add a land record</h2>
+      <form id="landForm">
+        <label for="survey">Survey number</label>
+        <input id="survey" required maxlength="40" placeholder="e.g. SY-102" />
+        <label for="owner">Owner name</label>
+        <input id="owner" required maxlength="100" placeholder="e.g. Demo Owner" />
+        <label for="location">Village / district</label>
+        <input id="location" required maxlength="120" placeholder="e.g. Demo Village, Vizianagaram" />
+        <label for="area">Area (acres)</label>
+        <input id="area" required type="number" min="0.01" step="0.01" placeholder="e.g. 1.50" />
+        <label for="purpose">Record type</label>
+        <select id="purpose"><option>Land ownership</option><option>Agri provenance</option><option>Certificate</option><option>Supply-chain asset</option></select>
+        <button class="primary" type="submit">+ Add record to ledger</button>
+      </form>
+      <div id="message" class="result" role="status"></div>
+    </section>
+    <section class="panel">
+      <h2>Ledger explorer</h2>
+      <div class="toolbar">
+        <button class="secondary" id="verifyBtn" type="button">Verify ledger</button>
+        <button class="danger" id="tamperBtn" type="button">Simulate unauthorized change</button>
+        <button class="secondary" id="resetBtn" type="button">Reset demo</button>
+      </div>
+      <div id="records" class="records"><div class="empty">No records yet. Add a sample land record to begin.</div></div>
+      <div id="verifyResult" class="result" role="status"></div>
+    </section>
+  </div>
+  <footer>Educational demo only · Do not enter real personal or confidential land-record data.</footer>
+</main>
+<script>
+  // Demo-only in-memory ledger. Refreshing the page clears it.
+  const ledger = [];
+  const $ = (id) => document.getElementById(id);
+
+  async function sha256(text) {
+    const bytes = new TextEncoder().encode(text);
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  function canonical(record) {
+    return JSON.stringify({
+      index: record.index, survey: record.survey, owner: record.owner,
+      location: record.location, area: record.area, purpose: record.purpose,
+      timestamp: record.timestamp, previousHash: record.previousHash
+    });
+  }
+
+  async function addRecord(data) {
+    const previousHash = ledger.length ? ledger[ledger.length - 1].hash : "GENESIS";
+    const record = {
+      index: ledger.length + 1, ...data, timestamp: new Date().toISOString(),
+      previousHash, hash: ""
+    };
+    record.hash = await sha256(canonical(record));
+    ledger.push(record);
+    render();
+    showMessage("message", "Record added and linked to the previous record.", true);
+    $("integrityStat").textContent = "Not checked";
+  }
+
+  function showMessage(id, text, success) {
+    const el = $(id);
+    el.textContent = text;
+    el.className = "result show " + (success ? "success" : "error");
+  }
+
+  async function verifyLedger() {
+    if (!ledger.length) {
+      showMessage("verifyResult", "Ledger is empty. Add a record first.", false);
+      $("integrityStat").textContent = "Empty";
+      return;
+    }
+    for (let i = 0; i < ledger.length; i++) {
+      const r = ledger[i];
+      const expectedPrevious = i === 0 ? "GENESIS" : ledger[i - 1].hash;
+      const expectedHash = await sha256(canonical(r));
+      if (r.previousHash !== expectedPrevious || r.hash !== expectedHash) {
+        showMessage("verifyResult", `Tampering or broken link detected at record #${r.index} (survey ${r.survey}).`, false);
+        $("integrityStat").textContent = "TAMPERING";
+        render();
+        return;
+      }
+    }
+    showMessage("verifyResult", "All record hashes and previous-hash links are valid.", true);
+    $("integrityStat").textContent = "Verified ✓";
+    render();
+  }
+
+  function render() {
+    $("recordCount").textContent = ledger.length;
+    const host = $("records");
+    if (!ledger.length) {
+      host.innerHTML = '<div class="empty">No records yet. Add a sample land record to begin.</div>';
+      return;
+    }
+    host.innerHTML = "";
+    ledger.slice().reverse().forEach(r => {
+      const article = document.createElement("article");
+      article.className = "record";
+      const top = document.createElement("div"); top.className = "record-top";
+      const titleWrap = document.createElement("div");
+      const title = document.createElement("h3"); title.textContent = `#${r.index} · ${r.survey}`;
+      const meta = document.createElement("div"); meta.className = "meta";
+      meta.textContent = `${r.owner} · ${r.location} · ${r.area} acres · ${r.purpose}`;
+      titleWrap.append(title, meta);
+      const pill = document.createElement("span"); pill.className = "pill " + (r.hash === "TAMPERED" ? "bad" : "ok");
+      pill.textContent = r.hash === "TAMPERED" ? "MODIFIED" : "HASHED";
+      top.append(titleWrap, pill);
+      const hash = document.createElement("div"); hash.className = "hash";
+      hash.textContent = "Hash: " + r.hash;
+      const prev = document.createElement("div"); prev.className = "hash";
+      prev.textContent = "Previous: " + r.previousHash;
+      article.append(top, hash, prev);
+      host.append(article);
+    });
+  }
+
+  $("landForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const area = Number($("area").value);
+    if (!Number.isFinite(area) || area <= 0) {
+      showMessage("message", "Enter an area greater than zero.", false); return;
+    }
+    await addRecord({
+      survey: $("survey").value.trim(), owner: $("owner").value.trim(),
+      location: $("location").value.trim(), area: area.toFixed(2),
+      purpose: $("purpose").value
+    });
+    event.target.reset();
+  });
+
+  $("verifyBtn").addEventListener("click", verifyLedger);
+  $("tamperBtn").addEventListener("click", () => {
+    if (!ledger.length) {
+      showMessage("verifyResult", "Add a record before simulating tampering.", false); return;
+    }
+    const target = ledger[0];
+    target.owner = target.owner + " (UNAUTHORIZED EDIT)";
+    // Keep the original hash to simulate a database edit without updating the hash.
+    render();
+    showMessage("verifyResult", `Simulated an unauthorized edit to record #${target.index}. Click "Verify ledger" to detect it.`, false);
+    $("integrityStat").textContent = "Check required";
+  });
+  $("resetBtn").addEventListener("click", () => {
+    ledger.length = 0;
+    $("landForm").reset();
+    $("message").className = "result";
+    $("verifyResult").className = "result";
+    $("integrityStat").textContent = "Not checked";
+    render();
+  });
+</script>
+</body>
+</html>
